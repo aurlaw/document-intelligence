@@ -1,0 +1,12 @@
+{
+  "name": "document-intelligence",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": ["frontend", "worker"],
+  "scripts": {
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:worker": "cd worker && npx wrangler dev",
+    "build:frontend": "npm run build -w frontend",
+    "typecheck": "npm run typecheck -w frontend && npm run typecheck -w worker"
+  }
+}
