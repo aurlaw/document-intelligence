@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "document-intelligence-shared": "*",
     "@fontsource/ibm-plex-mono": "^5.2.5",
     "@fontsource/ibm-plex-sans": "^5.2.5",
     "@fontsource/space-grotesk": "^5.2.5",

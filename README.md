@@ -14,10 +14,10 @@ Claude via AI Gateway (added in later phases).
 
 ```bash
 # Terminal 1 — Worker (developer runs; wrangler requires login)
-cd worker && npx wrangler dev # http://localhost:8787
+npm run worker # http://localhost:8787
 
 # Terminal 2 — Frontend
-cd frontend && npm run dev         # http://localhost:5173
+npm run frontend         # http://localhost:5173
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser. The Vite proxy forwards

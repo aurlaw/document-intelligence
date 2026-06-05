@@ -15,8 +15,8 @@ All commands run from the repo root unless noted.
 ```bash
 npm install                  # install both workspaces
 
-npm run dev:frontend         # start Vite dev server → http://localhost:5173
-# Worker is developer-run: cd worker && npx wrangler dev  → http://localhost:8787
+npm run worker          # starts wrangler http://localhost:8787
+npm run frontend         # start Vite dev server → http://localhost:5173
 
 npm run build:frontend       # type-check + Vite production build
 npm run typecheck            # tsc/vue-tsc --noEmit in both workspaces (run before declaring done)
@@ -30,11 +30,13 @@ npm run typecheck -w worker
 
 ## Architecture
 
-npm workspaces monorepo with two packages:
+npm workspaces monorepo with three packages:
 
-**`worker/`** — Cloudflare Worker (TypeScript). Single `fetch` handler in `src/index.ts` routing on `url.pathname`. `src/types.ts` holds the canonical `DocumentAnalysis` interface. No Node APIs; `compatibility_date = "2026-06-01"`. Secrets go in `worker/.dev.vars` (gitignored); `worker/.dev.vars.example` documents the shape.
+**`shared/`** — single source of truth for validation constants (`MAX_CHARS=8000`, `MAX_BYTES=2MB`, `NEAR_LIMIT`, `ACCEPT_EXT`, `ACCEPT_MIME`, `ACCEPT_ATTR`). Exported as `document-intelligence-shared`; both `frontend` and `worker` import from it. Never hardcode these numbers elsewhere.
 
-**`frontend/`** — Vue 3 SPA (Vite + TypeScript + Tailwind v3.4). Entrypoint: `src/main.ts` → `src/App.vue`. `src/types.ts` mirrors the worker's `DocumentAnalysis` — keep them in sync manually (no shared package yet). Vite proxies `/api/*` to `http://localhost:8787` so all API calls are same-origin in dev; no CORS handling anywhere.
+**`worker/`** — Cloudflare Worker (TypeScript). Single `fetch` handler in `src/index.ts` routing on `url.pathname`. `src/types.ts` holds the canonical `DocumentAnalysis` interface. No Node APIs; `compatibility_date = "2026-06-01"`. Secrets go in `worker/.dev.vars` (gitignored); `worker/.dev.vars.example` documents the shape. All `POST /api/analyze` requests are validated server-side before any processing.
+
+**`frontend/`** — Vue 3 SPA (Vite + TypeScript + Tailwind v3.4). Entrypoint: `src/main.ts` → `src/App.vue`. `src/types.ts` mirrors the worker's `DocumentAnalysis`. Validation logic lives in `src/composables/useDocumentInput.ts`; the `DocumentInput.vue` component is a thin presentational layer over it. Vite proxies `/api/*` to `http://localhost:8787` so all API calls are same-origin in dev; no CORS handling anywhere.
 
 **Tailwind setup:** design tokens are in `frontend/tailwind.config.js` (`theme.extend.colors` and `theme.extend.fontFamily`). Fonts are loaded via `@fontsource` npm packages in `main.ts` — no CDN links.
 

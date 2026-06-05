@@ -5,6 +5,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "document-intelligence-shared": "*"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250525.0",
     "typescript": "^5.8.3"
