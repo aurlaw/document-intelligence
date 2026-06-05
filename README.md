@@ -53,24 +53,3 @@ curl -X POST http://localhost:8787/api/ask
 
 Both return canned stub JSON. In the browser, the "Run stub analyze" and "Ask (stub)" buttons
 call the same endpoints through the Vite proxy.
-
----
-
-## Design Assets
-
-`docs/design/` holds the UI state PNGs (empty, analyzing, chat/analysis, streaming, failed)
-used as reference from Phase 3.5 onward. Do not modify this directory.
-
----
-
-## Phase Roadmap
-
-| Phase | Scope |
-|---|---|
-| **0** | Repo scaffold & local dev harness (this phase) |
-| 1 | Input, validation & hard caps |
-| 2 | Worker: Claude integration, structured analysis |
-| 3 | Worker: streaming SSE |
-| 3.5 | Full UI (design-spec components) |
-| 4 | Turnstile, rate limits, spend caps |
-| 5 | Cloudflare Pages deployment |
