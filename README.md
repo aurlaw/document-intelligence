@@ -43,7 +43,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser. The Vite pr
 
 ---
 
-## Verify the Round-Trip (Phase 0)
+## Verify Worker
 
 ```bash
 # With the Worker running on :8787:
