@@ -1,41 +1,16 @@
-import type { DocumentAnalysis } from "./types";
 import {
   MAX_CHARS,
   MAX_BYTES,
   ACCEPT_EXT,
   ACCEPT_MIME,
 } from "document-intelligence-shared";
+import { callClaude, buildContentBlock } from "./claude";
 
-const STUB_ANALYSIS: DocumentAnalysis = {
-  fileName: "Maple_Court_Residential_Lease.pdf",
-  fileType: "application/pdf",
-  documentType: "Lease Agreement",
-  summary:
-    "A 12-month residential lease for Unit 4B at 218 Maple Court, between landlord Eleanor R. Whitfield (via Maple Court Property Management LLC) and tenant Marcus T. Doyle. Rent is $2,450/month, due on the 1st, with a $2,450 security deposit and a $75 late fee after a 5-day grace period.",
-  keyEntities: {
-    people: ["Eleanor R. Whitfield", "Marcus T. Doyle", "Priya Anand"],
-    organizations: ["Maple Court Property Management LLC", "Sentinel Renters Insurance Co."],
-    dates: ["Aug 1, 2025", "Jul 31, 2026", "1st of month", "Jul 18, 2025"],
-    topics: [
-      "Rent $2,450/mo",
-      "Security deposit",
-      "Pet addendum",
-      "Subletting clause",
-      "Late fees",
-      "60-day notice",
-      "Maintenance",
-    ],
-  },
-  suggestedQuestions: [
-    "What is the monthly rent and when is it due?",
-    "Can the tenant sublet the unit?",
-    "What are the penalties for paying rent late?",
-    "How much notice is required to end the lease?",
-  ],
-};
-
-const STUB_ANSWER =
-  "No — subletting or assignment is prohibited without the landlord's prior written consent. Under §9.1, an unauthorized sublet is a material breach and grounds for termination.";
+interface Env {
+  ANTHROPIC_API_KEY: string;
+  ANTHROPIC_BASE_URL: string;
+  ANTHROPIC_MODEL: string;
+}
 
 function base64ByteSize(b64: string): number {
   const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
@@ -54,7 +29,7 @@ function errJson(kind: string, message: string, status: number): Response {
 const EMPTY_MSG = "Paste some text or attach a file to begin — we'll take it from there.";
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === "POST" && url.pathname === "/api/analyze") {
@@ -71,6 +46,10 @@ export default {
 
       const payload = body as Record<string, unknown>;
 
+      let contentBlock: ReturnType<typeof buildContentBlock>;
+      let fileName: string;
+      let fileType: string;
+
       if ("text" in payload) {
         const text = payload.text;
         if (typeof text !== "string" || text.length === 0) {
@@ -81,11 +60,16 @@ export default {
           return errJson(
             "over",
             `You're ${over.toLocaleString()} characters over. Trim it down, or attach the document as a file instead.`,
-            413
+            413,
           );
         }
+        fileName = "pasted-text.txt";
+        fileType = "text/plain";
+        // Text is already a string, so we base64-encode it to reuse buildContentBlock
+        const encoded = btoa(unescape(encodeURIComponent(text)));
+        contentBlock = buildContentBlock("text/plain", encoded);
       } else if ("dataBase64" in payload) {
-        const { fileName, mimeType, dataBase64 } = payload as {
+        const { fileName: fn, mimeType, dataBase64 } = payload as {
           fileName?: unknown;
           mimeType?: unknown;
           dataBase64?: unknown;
@@ -95,7 +79,7 @@ export default {
           return errJson("empty", EMPTY_MSG, 400);
         }
 
-        const fileNameStr = typeof fileName === "string" ? fileName : "";
+        const fileNameStr = typeof fn === "string" ? fn : "";
         const mimeTypeStr = typeof mimeType === "string" ? mimeType : "";
 
         const byteSize = base64ByteSize(dataBase64);
@@ -104,7 +88,7 @@ export default {
           return errJson(
             "size",
             `"${fileNameStr}" is ${sizeMB} MB. The limit is 2 MB — try a smaller file, or paste the text instead.`,
-            413
+            413,
           );
         }
 
@@ -115,18 +99,29 @@ export default {
           return errJson(
             "type",
             `"${ext || fileNameStr}" isn't something we can read. Use a PDF, an image (PNG / JPG / WebP), or plain text (.txt, .md, .csv).`,
-            415
+            415,
           );
         }
+
+        fileName = fileNameStr;
+        fileType = mimeTypeStr;
+        contentBlock = buildContentBlock(mimeTypeStr, dataBase64);
       } else {
         return errJson("empty", EMPTY_MSG, 400);
       }
 
-      return Response.json(STUB_ANALYSIS);
-    }
+      const config = {
+        apiKey: env.ANTHROPIC_API_KEY,
+        baseUrl: env.ANTHROPIC_BASE_URL || "https://api.anthropic.com",
+        model: env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+      };
 
-    if (request.method === "POST" && url.pathname === "/api/ask") {
-      return Response.json({ answer: STUB_ANSWER });
+      try {
+        const analysis = await callClaude(config, contentBlock, fileName, fileType);
+        return Response.json({ analysis });
+      } catch {
+        return errJson("analyze_failed", "Document analysis failed. Please try again.", 502);
+      }
     }
 
     return new Response("Not Found", { status: 404 });

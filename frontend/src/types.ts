@@ -1,13 +1,20 @@
+export interface EntityItem {
+  label?: string;
+  value: string;
+}
+
 export interface DocumentAnalysis {
   fileName: string;
   fileType: string;
+  documentType: string;
+  confidence?: number;
+  pageCount?: number;
   summary: string;
   keyEntities: {
-    people: string[];
-    organizations: string[];
-    dates: string[];
-    topics: string[];
+    people: EntityItem[];
+    organizations: EntityItem[];
+    dates: EntityItem[];
+    topics: EntityItem[];
   };
-  documentType: string;
   suggestedQuestions: string[];
 }
