@@ -32,11 +32,19 @@ Open [http://localhost:5173](http://localhost:5173) in your browser. The Vite pr
    npm install
    ```
 
-2. Copy the secrets example and fill in your key (not needed for Phase 0 stubs, but documents
-   the pattern for later phases):
+2. Copy the secrets example and fill in your Anthropic API key:
    ```bash
    cp worker/.dev.vars.example worker/.dev.vars
-   # then edit worker/.dev.vars and set ANTHROPIC_API_KEY=...
+   # then edit worker/.dev.vars and set ANTHROPIC_API_KEY=sk-ant-...
+   ```
+
+   To get an API key: sign in at [console.anthropic.com](https://console.anthropic.com), go to
+   **API Keys**, and create a new key. Free-tier accounts include a small credit; paid usage is
+   billed per token. Keep this key secret — `worker/.dev.vars` is gitignored.
+
+   Optionally override the model (defaults to `claude-sonnet-4-6`):
+   ```
+   ANTHROPIC_MODEL=claude-opus-4-8
    ```
 
 3. Start both dev servers (see above).
@@ -51,5 +59,5 @@ curl -X POST http://localhost:8787/api/analyze
 curl -X POST http://localhost:8787/api/ask
 ```
 
-Both return canned stub JSON. In the browser, the "Run stub analyze" and "Ask (stub)" buttons
-call the same endpoints through the Vite proxy.
+With a valid `ANTHROPIC_API_KEY` in `worker/.dev.vars`, `/api/analyze` makes a real Claude call
+and returns a structured `DocumentAnalysis`. Without a key the Worker will return a 502.
