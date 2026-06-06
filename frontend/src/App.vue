@@ -47,7 +47,7 @@ async function runAsk() {
 
 <template>
   <div style="padding: 2rem; font-family: sans-serif; max-width: 800px;">
-    <h1>DocuIntel — Phase 1</h1>
+    <h1>DocIntel — Phase 1</h1>
 
     <DocumentInput :disabled="loading" @submit="handleAnalyze" />
 

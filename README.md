@@ -1,4 +1,4 @@
-# DocuIntel
+# DocIntel
 
 An ephemeral document-analysis tool. Paste text or upload a small PDF/image, get a structured
 analysis (summary, key entities, suggested questions), then ask streaming follow-up questions.
