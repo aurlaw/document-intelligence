@@ -1,6 +1,7 @@
 export const MAX_CHARS = 8000;
 export const MAX_BYTES = 2 * 1024 * 1024;
 export const NEAR_LIMIT = 0.9 * MAX_CHARS;
+export const MAX_TURNS = 12; // max messages in a conversation (6 Q&A pairs)
 
 export const ACCEPT_EXT = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".md", ".csv"];
 export const ACCEPT_MIME = [

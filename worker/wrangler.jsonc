@@ -1,0 +1,12 @@
+{
+  // Cloudflare Worker config for document-intelligence-worker
+  "name": "document-intelligence-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+
+  "vars": {
+    // Override in .dev.vars (local) or Cloudflare dashboard (production)
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+    "ANTHROPIC_MODEL": "claude-sonnet-4-6"
+  }
+}

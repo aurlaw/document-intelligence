@@ -1,10 +1,12 @@
 import {
   MAX_CHARS,
   MAX_BYTES,
+  MAX_TURNS,
   ACCEPT_EXT,
   ACCEPT_MIME,
 } from "document-intelligence-shared";
-import { callClaude, buildContentBlock } from "./claude";
+import { callClaude, buildContentBlock, streamAsk } from "./claude";
+import type { DocRef, PriorMessage } from "./claude";
 
 interface Env {
   ANTHROPIC_API_KEY: string;
@@ -26,12 +28,21 @@ function errJson(kind: string, message: string, status: number): Response {
   return Response.json({ error: { kind, message } }, { status });
 }
 
+function getConfig(env: Env) {
+  return {
+    apiKey: env.ANTHROPIC_API_KEY,
+    baseUrl: env.ANTHROPIC_BASE_URL || "https://api.anthropic.com",
+    model: env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+  };
+}
+
 const EMPTY_MSG = "Paste some text or attach a file to begin — we'll take it from there.";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    // ─── POST /api/analyze ─────────────────────────────────────────────────────
     if (request.method === "POST" && url.pathname === "/api/analyze") {
       let body: unknown;
       try {
@@ -65,7 +76,6 @@ export default {
         }
         fileName = "pasted-text.txt";
         fileType = "text/plain";
-        // Text is already a string, so we base64-encode it to reuse buildContentBlock
         const encoded = btoa(unescape(encodeURIComponent(text)));
         contentBlock = buildContentBlock("text/plain", encoded);
       } else if ("dataBase64" in payload) {
@@ -110,18 +120,89 @@ export default {
         return errJson("empty", EMPTY_MSG, 400);
       }
 
-      const config = {
-        apiKey: env.ANTHROPIC_API_KEY,
-        baseUrl: env.ANTHROPIC_BASE_URL || "https://api.anthropic.com",
-        model: env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
-      };
-
       try {
-        const analysis = await callClaude(config, contentBlock, fileName, fileType);
+        const analysis = await callClaude(getConfig(env), contentBlock, fileName, fileType);
         return Response.json({ analysis });
       } catch {
         return errJson("analyze_failed", "Document analysis failed. Please try again.", 502);
       }
+    }
+
+    // ─── POST /api/ask ─────────────────────────────────────────────────────────
+    if (request.method === "POST" && url.pathname === "/api/ask") {
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return errJson("invalid", "Invalid request body.", 400);
+      }
+
+      if (!body || typeof body !== "object") {
+        return errJson("invalid", "Invalid request body.", 400);
+      }
+
+      const payload = body as Record<string, unknown>;
+      const { doc, messages, question } = payload as {
+        doc?: unknown;
+        messages?: unknown;
+        question?: unknown;
+      };
+
+      // Validate question
+      if (typeof question !== "string" || !question.trim()) {
+        return errJson("empty", "Question cannot be empty.", 400);
+      }
+
+      // Validate doc
+      if (!doc || typeof doc !== "object") {
+        return errJson("invalid", "Document is required.", 400);
+      }
+      const rawDoc = doc as Record<string, unknown>;
+      const { fileName: docFileName, mimeType: docMime, dataBase64: docData } = rawDoc;
+
+      if (typeof docData !== "string" || !docData) {
+        return errJson("invalid", "Document data is required.", 400);
+      }
+
+      const fileNameStr = typeof docFileName === "string" ? docFileName : "";
+      const mimeTypeStr = typeof docMime === "string" ? docMime : "";
+
+      // Reuse server-side size/type guards — never trust the client
+      const byteSize = base64ByteSize(docData);
+      if (byteSize > MAX_BYTES) {
+        return errJson("size", "Document too large.", 413);
+      }
+
+      const ext = getExt(fileNameStr);
+      if (!ACCEPT_EXT.includes(ext) || (mimeTypeStr && !ACCEPT_MIME.includes(mimeTypeStr))) {
+        return errJson("type", "Unsupported file type.", 415);
+      }
+
+      // Validate messages array and turn cap
+      if (!Array.isArray(messages)) {
+        return errJson("invalid", "Messages must be an array.", 400);
+      }
+      if (messages.length >= MAX_TURNS) {
+        return errJson("over", "Conversation limit reached. Analyze another document to continue.", 429);
+      }
+
+      const priorMessages: PriorMessage[] = messages.map((m: unknown) => {
+        const msg = m as { role?: unknown; content?: unknown };
+        return {
+          role: msg.role === "assistant" ? "assistant" : "user",
+          content: typeof msg.content === "string" ? msg.content : "",
+        };
+      });
+
+      const docRef: DocRef = { fileName: fileNameStr, mimeType: mimeTypeStr, dataBase64: docData };
+      const stream = streamAsk(getConfig(env), docRef, priorMessages, question.trim());
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+        },
+      });
     }
 
     return new Response("Not Found", { status: 404 });
