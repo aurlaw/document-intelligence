@@ -16,6 +16,9 @@ export default {
         hairline: "#22262f",
         accent: "#356bff",
         accentSoft: "#5b85ff",
+        warn: "#e0a23c",
+        danger: "#f0686a",
+        "counter-normal": "#4c5362",
       },
       fontFamily: {
         display: ['"Space Grotesk"', "sans-serif"],
