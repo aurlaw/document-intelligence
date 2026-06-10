@@ -11,7 +11,7 @@ import sampleText from './assets/sample.txt?raw'
 
 type Source = { name: string; size?: string; mode: 'paste' | 'file' }
 
-const { analysis, doc, loading, error, analyze, reset: resetAnalyze } = useAnalyze()
+const { analysis, doc, loading, error, askToken, analyze, reset: resetAnalyze } = useAnalyze()
 const chat = useDocumentChat()
 
 const steps = ref(0)
@@ -42,7 +42,7 @@ watch(loading, (val) => {
   }
 })
 
-async function handleAnalyze(payload: AnalyzePayload, name: string, size?: string) {
+async function handleAnalyze(payload: AnalyzePayload, name: string, size?: string, token?: string) {
   lastPayload.value = payload
   source.value = {
     name,
@@ -50,7 +50,7 @@ async function handleAnalyze(payload: AnalyzePayload, name: string, size?: strin
     mode: 'fileName' in payload ? 'file' : 'paste',
   }
   chat.reset()
-  await analyze(payload)
+  await analyze(payload, token)
 }
 
 async function handleSample() {
@@ -68,7 +68,7 @@ function handleRetryChat(msgIndex: number) {
     if (msgs[i].role === 'user') {
       const q = msgs[i].text
       msgs.splice(msgIndex, 1)
-      if (doc.value) chat.ask(doc.value, q)
+      if (doc.value) chat.ask(doc.value, q, askToken.value ?? '')
       return
     }
   }
@@ -76,7 +76,7 @@ function handleRetryChat(msgIndex: number) {
 
 async function handleAsk(question: string) {
   if (chat.busy.value || chat.atCap.value || !doc.value) return
-  await chat.ask(doc.value, question)
+  await chat.ask(doc.value, question, askToken.value ?? '')
 }
 
 function resetAll() {

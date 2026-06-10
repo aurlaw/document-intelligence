@@ -5,11 +5,12 @@ import { useDocumentInput } from '../composables/useDocumentInput'
 import type { AnalyzePayload } from '../composables/useDocumentInput'
 import Icon from './Icon.vue'
 import ValidationNote from './ValidationNote.vue'
+import TurnstileWidget from './TurnstileWidget.vue'
 
 const props = defineProps<{ disabled?: boolean }>()
 
 const emit = defineEmits<{
-  analyze: [payload: AnalyzePayload, name: string, size?: string]
+  analyze: [payload: AnalyzePayload, name: string, size?: string, token?: string]
 }>()
 
 const {
@@ -29,6 +30,10 @@ const {
 const fileInputEl = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
 const shakeNote = ref(false)
+const turnstileToken = ref('')
+const turnstileWidget = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -65,7 +70,10 @@ async function handleAnalyze() {
   const payload = await buildPayload()
   const name = file.value ? file.value.name : 'pasted text'
   const size = file.value ? formatBytes(file.value.size) : undefined
-  emit('analyze', payload, name, size)
+  const token = turnstileToken.value
+  turnstileToken.value = ''
+  turnstileWidget.value?.reset()
+  emit('analyze', payload, name, size, token)
 }
 
 function triggerShake() {
@@ -187,10 +195,21 @@ const validationLabelMap: Record<string, string> = {
       />
     </Transition>
 
+    <!-- Turnstile widget -->
+    <div class="flex justify-center">
+      <TurnstileWidget
+        ref="turnstileWidget"
+        :site-key="TURNSTILE_SITE_KEY"
+        @token="(t) => turnstileToken = t"
+        @expire="turnstileToken = ''"
+        @error="turnstileToken = ''"
+      />
+    </div>
+
     <!-- Analyze button -->
     <button
       type="button"
-      :disabled="isSubmitDisabled || disabled"
+      :disabled="isSubmitDisabled || disabled || !turnstileToken"
       class="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-accent font-medium text-sm text-white transition-all hover:bg-accentSoft active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-accent disabled:active:scale-100"
       @click="handleAnalyze"
     >

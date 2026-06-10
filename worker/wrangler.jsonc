@@ -6,7 +6,7 @@
 
   "vars": {
     // Override in .dev.vars (local) or Cloudflare dashboard (production)
-    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+    "ANTHROPIC_BASE_URL": "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic",
     "ANTHROPIC_MODEL": "claude-sonnet-4-6"
   }
 }

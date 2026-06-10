@@ -8,7 +8,7 @@ import type { AnalyzePayload } from '../../composables/useDocumentInput'
 defineProps<{ disabled?: boolean }>()
 
 const emit = defineEmits<{
-  analyze: [payload: AnalyzePayload, name: string, size?: string]
+  analyze: [payload: AnalyzePayload, name: string, size?: string, token?: string]
   sample: []
 }>()
 </script>
@@ -38,7 +38,7 @@ const emit = defineEmits<{
       <!-- Unified input -->
       <UnifiedInput
         :disabled="disabled"
-        @analyze="(payload, name, size) => emit('analyze', payload, name, size)"
+        @analyze="(payload, name, size, token) => emit('analyze', payload, name, size, token)"
       />
 
       <!-- Sample link -->
@@ -54,8 +54,14 @@ const emit = defineEmits<{
 
       <!-- Trust notice -->
       <p class="mt-6 text-center text-xs text-faint leading-relaxed">
-        Nothing you paste or upload is stored. Documents and conversations are discarded<br class="hidden sm:inline" />
-        the moment you analyze another document or refresh the page.
+        Nothing you paste or upload is stored. Your document is sent directly to Claude via Cloudflare's AI Gateway —<br class="hidden sm:inline" />
+        request metadata is logged for analytics, but your document content is never stored.<br class="hidden sm:inline" />
+        Documents and conversations are discarded the moment you analyze another document or refresh the page.
+      </p>
+
+      <!-- Data flow label -->
+      <p class="mt-3 text-center font-mono text-xs text-faint/60">
+        Browser &rarr; Worker &rarr; AI Gateway &rarr; Claude
       </p>
 
       <!-- How it works explainer -->

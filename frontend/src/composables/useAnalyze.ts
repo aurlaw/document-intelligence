@@ -22,26 +22,34 @@ export function useAnalyze() {
   const doc = ref<DocRef | null>(null);
   const loading = ref(false);
   const error = ref<{ kind: string; message: string } | null>(null);
+  const askToken = ref<string | null>(null);
 
-  async function analyze(payload: AnalyzePayload) {
+  async function analyze(payload: AnalyzePayload, turnstileToken?: string) {
     loading.value = true;
     error.value = null;
     analysis.value = null;
     doc.value = null;
+    askToken.value = null;
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, turnstileToken }),
       });
       const data = (await res.json()) as
-        | { analysis: DocumentAnalysis }
+        | { analysis: DocumentAnalysis; askToken?: string }
         | { error: { kind: string; message: string } };
       if (!res.ok) {
-        error.value =
-          "error" in data ? data.error : { kind: "error", message: "An unexpected error occurred." };
+        const err = "error" in data ? data.error : { kind: "error", message: "An unexpected error occurred." };
+        if (err.kind === "rate_limited") {
+          error.value = { kind: "rate_limited", message: "The service is busy — try again in a moment." };
+        } else {
+          error.value = err;
+        }
       } else {
-        analysis.value = (data as { analysis: DocumentAnalysis }).analysis;
+        const success = data as { analysis: DocumentAnalysis; askToken?: string };
+        analysis.value = success.analysis;
+        askToken.value = success.askToken ?? null;
         doc.value = normalizeToDoc(payload);
       }
     } catch {
@@ -55,7 +63,8 @@ export function useAnalyze() {
     analysis.value = null;
     doc.value = null;
     error.value = null;
+    askToken.value = null;
   }
 
-  return { analysis, doc, loading, error, analyze, reset };
+  return { analysis, doc, loading, error, askToken, analyze, reset };
 }

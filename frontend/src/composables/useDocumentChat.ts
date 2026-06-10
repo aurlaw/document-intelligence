@@ -22,7 +22,7 @@ export function useDocumentChat() {
     () => messages.value.filter((m) => m.role !== "error").length >= MAX_TURNS,
   );
 
-  async function ask(doc: DocRef, question: string): Promise<void> {
+  async function ask(doc: DocRef, question: string, askToken: string): Promise<void> {
     if (busy.value || atCap.value) return;
 
     messages.value.push({ role: "user", text: question });
@@ -39,13 +39,19 @@ export function useDocumentChat() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doc, messages: priorMessages, question }),
+        body: JSON.stringify({ doc, messages: priorMessages, question, askToken }),
       });
 
       if (!res.ok || !res.body) {
-        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        const msg = data?.error?.message ?? "Request failed. Please try again.";
-        messages.value.push({ role: "error", text: msg });
+        const data = await res.json().catch(() => ({})) as { error?: { kind?: string; message?: string } };
+        const kind = data?.error?.kind ?? "";
+        if (kind === "session_expired") {
+          messages.value.push({ role: "error", text: "Session expired — analyze a document to continue." });
+        } else if (kind === "rate_limited") {
+          messages.value.push({ role: "error", text: "The service is busy — try again in a moment." });
+        } else {
+          messages.value.push({ role: "error", text: data?.error?.message ?? "Request failed. Please try again." });
+        }
         busy.value = false;
         return;
       }
@@ -91,7 +97,10 @@ export function useDocumentChat() {
             busy.value = false;
             return;
           } else if (eventName === "error") {
-            const msg = (parsed as { message?: string }).message ?? "Stream error.";
+            const errData = parsed as { kind?: string; message?: string };
+            const msg = errData.kind === "rate_limited"
+              ? "The service is busy — try again in a moment."
+              : (errData.message ?? "Stream error.");
             messages.value.push({ role: "error", text: msg });
             currentStream.value = "";
             busy.value = false;

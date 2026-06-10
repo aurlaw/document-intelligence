@@ -1,1 +1,15 @@
+# Local dev — bypasses AI Gateway (see Phase 4 brief local-dev section)
 ANTHROPIC_API_KEY=
+#ANTHROPIC_BASE_URL=https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/anthropic
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+
+# Turnstile: use Cloudflare test keys for local dev (always pass)
+# Site key  1x00000000000000000000AA  → set as VITE_TURNSTILE_SITE_KEY in frontend/.env.local
+# Secret key below always passes siteverify:
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+
+# HMAC key for short-lived ask tokens — generate with: openssl rand -base64 32
+ASK_TOKEN_SECRET=
+
+# Only needed if Authenticated Gateway is enabled (step B7 in Phase 4 brief)
+CF_AIG_TOKEN=

@@ -7,11 +7,15 @@ import {
 } from "document-intelligence-shared";
 import { callClaude, buildContentBlock, streamAsk } from "./claude";
 import type { DocRef, PriorMessage } from "./claude";
+import { verifyTurnstile, mintAskToken, verifyAskToken } from "./auth";
 
 interface Env {
   ANTHROPIC_API_KEY: string;
   ANTHROPIC_BASE_URL: string;
   ANTHROPIC_MODEL: string;
+  TURNSTILE_SECRET: string;
+  ASK_TOKEN_SECRET: string;
+  CF_AIG_TOKEN: string;
 }
 
 function base64ByteSize(b64: string): number {
@@ -33,6 +37,7 @@ function getConfig(env: Env) {
     apiKey: env.ANTHROPIC_API_KEY,
     baseUrl: env.ANTHROPIC_BASE_URL || "https://api.anthropic.com",
     model: env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+    cfAigToken: env.CF_AIG_TOKEN || undefined,
   };
 }
 
@@ -56,6 +61,13 @@ export default {
       }
 
       const payload = body as Record<string, unknown>;
+
+      // Verify Turnstile token before any Claude call
+      const turnstileToken = typeof payload.turnstileToken === "string" ? payload.turnstileToken : "";
+      const ip = request.headers.get("CF-Connecting-IP") ?? undefined;
+      if (!await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET, ip)) {
+        return errJson("unauthorized", "Security check failed. Please try again.", 403);
+      }
 
       let contentBlock: ReturnType<typeof buildContentBlock>;
       let fileName: string;
@@ -122,8 +134,12 @@ export default {
 
       try {
         const analysis = await callClaude(getConfig(env), contentBlock, fileName, fileType);
-        return Response.json({ analysis });
-      } catch {
+        const askToken = await mintAskToken(env.ASK_TOKEN_SECRET);
+        return Response.json({ analysis, askToken });
+      } catch (e) {
+        if ((e as { kind?: string }).kind === "rate_limited") {
+          return errJson("rate_limited", "The service is busy — try again in a moment.", 429);
+        }
         return errJson("analyze_failed", "Document analysis failed. Please try again.", 502);
       }
     }
@@ -142,6 +158,13 @@ export default {
       }
 
       const payload = body as Record<string, unknown>;
+
+      // Verify ask token before any processing
+      const askToken = typeof payload.askToken === "string" ? payload.askToken : "";
+      if (!await verifyAskToken(askToken, env.ASK_TOKEN_SECRET)) {
+        return errJson("session_expired", "Session expired — analyze a document to start a new session.", 401);
+      }
+
       const { doc, messages, question } = payload as {
         doc?: unknown;
         messages?: unknown;
