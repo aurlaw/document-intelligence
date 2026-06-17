@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Workers
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Vite inlines VITE_-prefixed vars into the bundle at build time.
+      # VITE_TURNSTILE_SITE_KEY must be present here — the Worker never sees it.
+      # Set this as a GitHub repo *variable* (not a secret):
+      #   Settings → Secrets and variables → Actions → Variables → VITE_TURNSTILE_SITE_KEY
+      - name: Build frontend
+        run: npm run build:frontend
+        env:
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+
+      # Ships the Worker + bundled frontend assets in a single wrangler deploy.
+      # Runtime secrets (ANTHROPIC_API_KEY, TURNSTILE_SECRET, ASK_TOKEN_SECRET,
+      # CF_AIG_TOKEN, ANTHROPIC_BASE_URL) are set once on the Worker via
+      # `wrangler secret put` — they are NOT injected here (Model B).
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          workingDirectory: worker
+          command: deploy

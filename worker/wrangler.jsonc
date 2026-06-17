@@ -5,9 +5,21 @@
   "compatibility_date": "2026-06-01",
 
   "vars": {
-    // Override in .dev.vars (local) or Cloudflare dashboard (production)
-    "ANTHROPIC_BASE_URL": "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic",
+    // Non-sensitive default; overridable via dashboard or .dev.vars
     "ANTHROPIC_MODEL": "claude-sonnet-4-6"
+    // NOTE: ANTHROPIC_BASE_URL is a Worker secret (set via `wrangler secret put`),
+    // NOT a var — keeps the account-specific gateway URL off committed config.
+  },
+
+  // Secrets the Worker requires at runtime. Set once after first deploy:
+  //   npx wrangler secret put ANTHROPIC_API_KEY
+  //   npx wrangler secret put TURNSTILE_SECRET
+  //   npx wrangler secret put ASK_TOKEN_SECRET
+  //   npx wrangler secret put CF_AIG_TOKEN        (drop if Authenticated Gateway not enabled)
+  //   npx wrangler secret put ANTHROPIC_BASE_URL  (real gateway URL)
+  // These persist across deploys — the Action never touches them (Model B).
+  "secrets": {
+    "required": ["ANTHROPIC_API_KEY", "TURNSTILE_SECRET", "ASK_TOKEN_SECRET", "CF_AIG_TOKEN", "ANTHROPIC_BASE_URL"]
   },
 
   "assets": {
