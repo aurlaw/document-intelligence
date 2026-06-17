@@ -8,5 +8,16 @@
     // Override in .dev.vars (local) or Cloudflare dashboard (production)
     "ANTHROPIC_BASE_URL": "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/anthropic",
     "ANTHROPIC_MODEL": "claude-sonnet-4-6"
+  },
+
+  "assets": {
+    // Vue build output (vite build in frontend/ emits here)
+    "directory": "../frontend/dist/",
+    // Return index.html for unmatched paths so client-side navigation works
+    "not_found_handling": "single-page-application",
+    // Lets the Worker serve assets programmatically via env.ASSETS.fetch()
+    "binding": "ASSETS",
+    // Force /api/* to the Worker script before any asset matching
+    "run_worker_first": ["/api/*"]
   }
 }

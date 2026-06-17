@@ -8,18 +8,15 @@ Cloudflare AI Gateway for caching, rate limiting, and spend controls.
 
 ---
 
-## Local Dev (Two Terminals)
+## Local Dev (Single Command)
 
 ```bash
-# Terminal 1 — Worker (developer runs; wrangler requires login)
-npm run worker           # http://localhost:8787
-
-# Terminal 2 — Frontend
 npm run frontend         # http://localhost:5173
 ```
 
-Open [http://localhost:5173](http://localhost:5173). The Vite proxy forwards `/api/*` requests to
-the Worker on `:8787` — no CORS issues.
+One command starts both the Vue SPA and the Cloudflare Worker in the Workers runtime (via the
+Cloudflare Vite plugin). All `/api/*` requests are handled by the Worker in the same origin —
+no proxy, no CORS, no second terminal.
 
 ---
 
@@ -62,9 +59,14 @@ To test with your real Turnstile site key (e.g. before deploying), create `front
 VITE_TURNSTILE_SITE_KEY=<your_real_site_key>
 ```
 
-### 4. Start both dev servers
+### 4. Start the integrated dev server
 
-See the two-terminal commands above.
+```bash
+npm run frontend
+```
+
+Open [http://localhost:5173](http://localhost:5173). The Cloudflare Vite plugin runs the Worker
+in the Workers runtime alongside Vite — same-origin, matching production behavior.
 
 ---
 
@@ -105,6 +107,12 @@ worker/     Cloudflare Worker (TypeScript)
 shared/     Validation constants shared by both
 ```
 
+The Worker is a single deployable unit: it serves the Vue SPA as static assets **and** handles all
+`/api/*` routes. `run_worker_first: ["/api/*"]` in `wrangler.jsonc` ensures API paths always reach
+the Worker before any asset matching; everything else falls through to SPA assets with
+`not_found_handling: single-page-application` for deep-link support.
+
 The Worker is the only thing that ever touches your API key or document data. The frontend sends
 documents to the Worker; the Worker forwards them to Claude via the AI Gateway. Nothing is stored
 at any layer — the gateway logs request metadata (cost, latency) but never document content.
+

@@ -16,6 +16,7 @@ interface Env {
   TURNSTILE_SECRET: string;
   ASK_TOKEN_SECRET: string;
   CF_AIG_TOKEN: string;
+  ASSETS: Fetcher;
 }
 
 function base64ByteSize(b64: string): number {
@@ -46,6 +47,12 @@ const EMPTY_MSG = "Paste some text or attach a file to begin — we'll take it f
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Non-API requests go to static assets. run_worker_first ensures the Worker
+    // is only invoked for /api/* in production; this is a belt-and-suspenders fallback.
+    if (!url.pathname.startsWith("/api/")) {
+      return env.ASSETS.fetch(request);
+    }
 
     // ─── POST /api/analyze ─────────────────────────────────────────────────────
     if (request.method === "POST" && url.pathname === "/api/analyze") {
@@ -228,6 +235,6 @@ export default {
       });
     }
 
-    return new Response("Not Found", { status: 404 });
+    return env.ASSETS.fetch(request);
   },
 };
