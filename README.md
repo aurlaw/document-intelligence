@@ -8,7 +8,7 @@ Cloudflare AI Gateway for caching, rate limiting, and spend controls.
 
 ---
 
-## Local Dev (Single Command)
+## Local Dev
 
 ```bash
 npm run frontend         # http://localhost:5173
