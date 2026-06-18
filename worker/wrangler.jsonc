@@ -24,7 +24,7 @@
 
   "assets": {
     // Vue build output (vite build in frontend/ emits here)
-    "directory": "../frontend/dist/",
+    "directory": "../frontend/dist/client",
     // Return index.html for unmatched paths so client-side navigation works
     "not_found_handling": "single-page-application",
     // Lets the Worker serve assets programmatically via env.ASSETS.fetch()
